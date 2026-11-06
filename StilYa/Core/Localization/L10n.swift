@@ -112,6 +112,7 @@ enum L10n {
     static var profileReference: String { loc("profile.reference") }
     static var profileProMember: String { loc("profile.proMember") }
     static var profileFreeMember: String { loc("profile.freeMember") }
+    static var profileFreeCreditsHint: String { loc("profile.freeCreditsHint") }
     static var profileRemainingCredits: String { loc("profile.remainingCredits") }
     static var profileProCredits: String { loc("profile.proCredits") }
     static var profileBuyCredits: String { loc("profile.buyCredits") }
@@ -768,6 +769,13 @@ enum L10n {
     static var onboardingRefChoiceRecommended: String { loc("onboarding.refChoice.recommended") }
     static var onboardingRefChoiceAIResultLabel: String { loc("onboarding.refChoice.aiResultLabel") }
     static var onboardingRefChoiceOrDivider: String { loc("onboarding.refChoice.orDivider") }
+    static var onboardingRefCheckChecking: String { loc("onboarding.refCheck.checking") }
+    static var onboardingRefCheckNoPerson: String { loc("onboarding.refCheck.noPerson") }
+    static var onboardingRefCheckMultiple: String { loc("onboarding.refCheck.multiple") }
+    static var onboardingRefCheckNotFullBody: String { loc("onboarding.refCheck.notFullBody") }
+    static var onboardingRefCheckTip: String { loc("onboarding.refCheck.tip") }
+    static var onboardingRefCheckUseAnyway: String { loc("onboarding.refCheck.useAnyway") }
+    static var onboardingRefCheckPickAnother: String { loc("onboarding.refCheck.pickAnother") }
 
     // MARK: - Onboarding Errors
     static var onboardingReviewUploadOwn: String { loc("onboarding.review.uploadOwn") }

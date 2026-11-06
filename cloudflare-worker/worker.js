@@ -866,7 +866,7 @@ let CREDIT_CONSTANTS = {
   maxDailyRewardedAds: 1,
   // Free (onboarding) model-photo generation is not charged credits, so it is
   // metered separately here. Only SUCCESSFUL generations count.
-  freeModelPhotoLimit: 2, // lifetime free model-photo generations for non-Pro users
+  freeModelPhotoLimit: 1, // lifetime free AI model-photo generations for non-Pro users
   proModelPhotoWeekly: 3, // per-week free model-photo generations for Pro users
 };
 
@@ -952,6 +952,9 @@ async function checkRateLimit(env, userId) {
  * Check if weekly credits need reset
  */
 function needsWeeklyReset(user) {
+  // Pay-to-use (freeWeeklyCredits = 0): the free bucket only holds the one-time
+  // trial credit, which must never be wiped by a "weekly reset".
+  if (CREDIT_CONSTANTS.freeWeeklyCredits <= 0) return false;
   if (!user.weeklyCreditsLastReset) return true;
   const resetDate = user.weeklyCreditsLastReset instanceof Date
     ? user.weeklyCreditsLastReset

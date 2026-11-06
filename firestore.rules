@@ -48,8 +48,8 @@ service cloud.firestore {
       return (
         // Must NOT set Pro status on create
         data.get('isPro', false) == false
-        // Must NOT set credits above free weekly limit
-        && data.get('credits', 0) <= 5
+        // New accounts get at most the one-time trial credit
+        && data.get('credits', 0) <= 1
         // Must NOT set purchased credits on create
         && data.get('purchasedCredits', 0) == 0
         // Must NOT set pro credits on create

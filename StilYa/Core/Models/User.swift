@@ -119,6 +119,8 @@ struct User: Identifiable, Codable {
     }
 
     var needsWeeklyReset: Bool {
+        // Pay-to-use: no weekly free grant, so the trial credit is never reset
+        guard AppConstants.freeWeeklyCredits > 0 else { return false }
         let calendar = Calendar.current
         let daysSinceReset = calendar.dateComponents([.day], from: weeklyCreditsLastReset, to: Date()).day ?? 0
         return daysSinceReset >= 7
@@ -142,7 +144,7 @@ struct User: Identifiable, Codable {
         howDidYouHear: String? = nil,
         isPro: Bool = false,
         subscriptionExpiryDate: Date? = nil,
-        credits: Int = AppConstants.freeWeeklyCredits,
+        credits: Int = AppConstants.trialCredits, // new accounts start with the one-time trial
         purchasedCredits: Int = 0,
         weeklyCreditsLastReset: Date = Date(),
         totalCreditsUsed: Int = 0,

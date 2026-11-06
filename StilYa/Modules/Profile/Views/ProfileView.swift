@@ -638,22 +638,6 @@ struct MembershipCard: View {
 
     // MARK: - Free Card
 
-    private var freeRenewalText: String? {
-        guard let resetDate = user?.weeklyCreditsLastReset else { return nil }
-        let nextReset = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: resetDate) ?? resetDate
-        let now = Date()
-        guard nextReset > now else { return nil }
-        let components = Calendar.current.dateComponents([.day, .hour], from: now, to: nextReset)
-        let days = components.day ?? 0
-        let hours = components.hour ?? 0
-        if days > 0 {
-            return L10n.creditsRenewsInDaysHours(days, hours)
-        } else if hours > 0 {
-            return L10n.creditsRenewsInHours(hours)
-        }
-        return nil
-    }
-
     private var freeCard: some View {
         VStack(spacing: 12) {
             HStack {
@@ -669,21 +653,16 @@ struct MembershipCard: View {
             // Kredi + yenilenme bilgisi
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.creditsWeeklyFree(AppConstants.freeWeeklyCredits))
+                    Text(L10n.profileRemainingCredits)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.textPrimary)
-                    if let renewal = freeRenewalText {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 11))
-                            Text(renewal)
-                                .font(.system(size: 13))
-                        }
+                    Text(L10n.profileFreeCreditsHint)
+                        .font(.system(size: 13))
                         .foregroundColor(.textSecondary)
-                    }
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                Text("\(user?.credits ?? 0)")
+                Text("\(user?.totalAvailableCredits ?? 0)")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(.accent)
             }
