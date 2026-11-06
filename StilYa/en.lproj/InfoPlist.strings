@@ -1,0 +1,9 @@
+/*
+  InfoPlist.strings
+  StilYa - English (en)
+*/
+
+"NSPhotoLibraryUsageDescription" = "Allows you to select photos to try on clothes";
+"NSPhotoLibraryAddUsageDescription" = "Allows you to save try-on results to your gallery";
+"NSCameraUsageDescription" = "Allows you to take photos to try on clothes";
+"NSLocationWhenInUseUsageDescription" = "Your location is used to provide weather-based style tips.";

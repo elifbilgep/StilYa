@@ -1,0 +1,9 @@
+/*
+  InfoPlist.strings
+  StilYa - Turkish (tr)
+*/
+
+"NSPhotoLibraryUsageDescription" = "Fotoğraflarınızı seçerek kıyafetleri denemenizi sağlar";
+"NSPhotoLibraryAddUsageDescription" = "Deneme sonuçlarını galerinize kaydetmenizi sağlar";
+"NSCameraUsageDescription" = "Fotoğraf çekerek kıyafetleri denemenizi sağlar";
+"NSLocationWhenInUseUsageDescription" = "Hava durumuna göre stil önerileri sunmak için konumunuz kullanılır.";

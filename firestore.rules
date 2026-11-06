@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /feedback/{feedbackId} {
+      allow create: if request.auth != null;
+    }
+
+    // =============================================
+    // PROTECTED FIELDS — client CANNOT modify these
+    // Only server (Cloud Functions / Admin SDK) can change them.
+    // =============================================
+    // isPro, subscriptionExpiryDate, subscriptionPlan,
+    // proCredits, proCreditsCycleStart,
+    // credits, purchasedCredits, totalCreditsUsed,
+    // hasPurchased, lastTransactionId, lastTransactionDate,
+    // referralCount, referredBy, weeklyCreditsLastReset
+
+    // Helper: check that NO protected/monetary fields are being changed by client
+    function noProtectedFieldChanges() {
+      let before = resource.data;
+      let after = request.resource.data;
+      return (
+        // Subscription fields — only server can change
+        after.get('isPro', false) == before.get('isPro', false)
+        && after.get('subscriptionExpiryDate', null) == before.get('subscriptionExpiryDate', null)
+        && after.get('subscriptionPlan', null) == before.get('subscriptionPlan', null)
+        && after.get('proCredits', 0) == before.get('proCredits', 0)
+        && after.get('proCreditsCycleStart', null) == before.get('proCreditsCycleStart', null)
+        // Credit fields — only server can change
+        && after.get('credits', 0) == before.get('credits', 0)
+        && after.get('purchasedCredits', 0) == before.get('purchasedCredits', 0)
+        && after.get('totalCreditsUsed', 0) == before.get('totalCreditsUsed', 0)
+        // Purchase tracking — only server can change
+        && after.get('hasPurchased', false) == before.get('hasPurchased', false)
+        && after.get('lastTransactionId', null) == before.get('lastTransactionId', null)
+        && after.get('lastTransactionDate', null) == before.get('lastTransactionDate', null)
+        // Referral fields — only server can change
+        && after.get('referralCount', 0) == before.get('referralCount', 0)
+        && after.get('referredBy', null) == before.get('referredBy', null)
+        // Timing fields — prevent manipulation to trigger early resets
+        && after.get('weeklyCreditsLastReset', null) == before.get('weeklyCreditsLastReset', null)
+      );
+    }
+
+    // Helper: validate allowed fields on create (safe defaults only)
+    function validCreateDefaults(data) {
+      return (
+        // Must NOT set Pro status on create
+        data.get('isPro', false) == false
+        // Must NOT set credits above free weekly limit
+        && data.get('credits', 0) <= 5
+        // Must NOT set purchased credits on create
+        && data.get('purchasedCredits', 0) == 0
+        // Must NOT set pro credits on create
+        && data.get('proCredits', 0) == 0
+        // Must NOT set totalCreditsUsed on create
+        && data.get('totalCreditsUsed', 0) == 0
+        // Must NOT set hasPurchased on create
+        && data.get('hasPurchased', false) == false
+        // Must NOT set referralCount on create
+        && data.get('referralCount', 0) == 0
+      );
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Users can ONLY read their own document
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Users can create their own document (safe defaults enforced)
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.id == userId
+        && validCreateDefaults(request.resource.data);
+
+      // Users can update ONLY safe fields (profile info, model image, etc.)
+      // Protected fields (credits, isPro, etc.) CANNOT be changed by client
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && noProtectedFieldChanges();
+
+      // Delete own account
+      allow delete: if request.auth != null && request.auth.uid == userId;
+
+      // Subcollections — only owner access
+      match /looks/{lookId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /garments/{garmentId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Referral codes lookup table
+    match /referralCodes/{code} {
+      // Anyone authenticated can check if a code exists
+      allow read: if request.auth != null;
+      // Only create, never modify or delete
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasAll(['userId', 'createdAt'])
+        && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Device referral tracking (fraud prevention)
+    match /deviceReferrals/{deviceId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+  }
+}

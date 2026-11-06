@@ -1,0 +1,49 @@
+# Xcode
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+
+# CocoaPods
+Pods/
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Vertex AI Credentials (NEVER COMMIT!)
+StilYa/vertex-ai-key.json
+StilYa/Resources/vertex-ai-key.json
+
+# Firebase Config
+StilYa/GoogleService-Info.plist
+
+# API keys / local config (see Config/Secrets.example.xcconfig and .env.example)
+Config/Secrets.xcconfig
+.env
+.env.*
+!.env.example
+cloudflare-worker/.dev.vars
+
+# Cloudflare Wrangler
+cloudflare-worker/.wrangler/
+
+# Firebase
+.firebaserc
+
+# macOS
+.DS_Store
+cloudflare-worker/wrangler.production.jsonc

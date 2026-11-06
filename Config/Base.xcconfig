@@ -1,0 +1,25 @@
+// Base.xcconfig — committed build settings for the StilYa app target.
+//
+// Put your own values in Config/Secrets.xcconfig (gitignored):
+//   cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
+// Anything set there overrides the defaults below.
+//
+// Note: "//" starts a comment in xcconfig files, so URLs are written as
+// https:/$()/host — the empty $() keeps the double slash intact.
+
+// URL of your deployed Cloudflare Worker. Defaults to `wrangler dev`.
+STILYA_API_BASE_URL = http:/$()/localhost:8787
+
+// RevenueCat public SDK key (appl_...). Empty → in-app purchases disabled.
+REVENUECAT_API_KEY =
+
+// Google Sign-In: REVERSED_CLIENT_ID from your GoogleService-Info.plist.
+GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.your-client-id
+
+// AdMob app ID. Ads are disabled in code; this default is Google's public sample ID.
+ADMOB_APP_ID = ca-app-pub-3940256099942544~1458002511
+
+// Apple developer team for device builds (not needed for the Simulator).
+DEVELOPMENT_TEAM =
+
+#include? "Secrets.xcconfig"

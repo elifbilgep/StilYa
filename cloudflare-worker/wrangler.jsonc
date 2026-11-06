@@ -1,0 +1,35 @@
+// StilYa worker — the app's only backend.
+// It verifies Firebase Auth tokens, meters credits, and calls fal for every
+// image generation. Secrets (FAL_KEY, ...) are set with `wrangler secret put`
+// or, for `wrangler dev`, in cloudflare-worker/.dev.vars (see ../.env.example).
+{
+  "name": "stilya-worker",
+  "main": "worker.js",
+  "compatibility_date": "2025-04-01",
+
+  // Uncomment to serve the worker on your own domain:
+  // "routes": [{ "pattern": "api.your-domain.com", "custom_domain": true }],
+
+  "vars": {
+    "ENVIRONMENT": "development",
+    "IS_DEBUG": "true",
+    // Your Firebase project (Project settings → General)
+    "FIREBASE_PROJECT_ID": "your-firebase-project-id",
+    "FIREBASE_PROJECT_NUMBER": "",
+    // fal model endpoints — swap any of these for another fal image-edit model
+    "FAL_MODEL_TRYON": "fal-ai/nano-banana-2/edit",
+    "FAL_MODEL_TRYON_PRO": "fal-ai/nano-banana-pro/edit",
+    "FAL_MODEL_PHOTO": "fal-ai/nano-banana-pro/edit"
+  },
+
+  // Optional: KV for rate limits, bans and remote config.
+  //   npx wrangler kv namespace create STILYA_KV
+  // "kv_namespaces": [{ "binding": "STILYA_KV", "id": "<your-kv-namespace-id>" }],
+
+  // Optional: R2 for user images and generated results. Without it, try-on
+  // results are returned as fal CDN URLs.
+  //   npx wrangler r2 bucket create stilya-images
+  // "r2_buckets": [{ "binding": "STILYA_BUCKET", "bucket_name": "stilya-images" }],
+
+  "observability": { "enabled": true, "logs": { "enabled": true } }
+}
