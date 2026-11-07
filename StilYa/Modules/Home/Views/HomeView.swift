@@ -16,6 +16,7 @@ struct HomeView: View {
     @EnvironmentObject private var localizationManager: LocalizationManager
     @State private var showCart = false
     @State private var showProView = false
+    @State private var showCreditSheet = false
     @State private var cartItemCount = 0
     @State private var userCredits = 0
     @State private var userIsPro = RevenueCatManager.shared.isProActive
@@ -72,7 +73,17 @@ struct HomeView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
 
-                    Spacer()
+                    Spacer(minLength: 4)
+
+                    // Remaining tries — hang tag, opens the credit sheet
+                    Button {
+                        showCreditSheet = true
+                    } label: {
+                        CreditTag(text: L10n.homeCreditTag(userCredits))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.homeCreditTag(userCredits))
+                    .padding(.trailing, 4)
                 }
                 .padding(.horizontal, Spacing.screenHorizontal)
 
@@ -132,6 +143,12 @@ struct HomeView: View {
             }
         }) {
             ProView()
+                .preferredColorScheme(.light)
+        }
+        .sheet(isPresented: $showCreditSheet, onDismiss: {
+            Task { await loadUserCredits() }
+        }) {
+            HomeCreditSheet()
                 .preferredColorScheme(.light)
         }
         .sheet(isPresented: $showPendingModelSheet) {
@@ -386,211 +403,350 @@ struct HomeView: View {
 
     @ViewBuilder
     private var layoutA: some View {
-        // Weather card
-        weatherCard
+        // Taped paper strip: weather / daily tip
+        tipStrip
             .padding(.horizontal, Spacing.screenHorizontal)
             .padding(.top, 10)
-            .padding(.bottom, 4)
             .modifier(ProStaggerModifier(show: proAppeared, isPro: userIsPro, index: 0))
 
-        // Action Card (single Try Outfit)
-        actionCards
-            .padding(.top, 2)
-            .padding(.bottom, 8)
+        // The one primary action
+        heroCard
+            .padding(.horizontal, Spacing.screenHorizontal)
+            .padding(.top, 10)
             .modifier(ProStaggerModifier(show: proAppeared, isPro: userIsPro, index: 1))
 
-        // Recent Looks + Closet side by side
-        HStack(alignment: .center, spacing: 0) {
-            recentLooksColumn
+        // Wall shelf: recent looks + trend magazine
+        shelfScene
+            .padding(.top, 18)
+            .modifier(ProStaggerModifier(show: proAppeared, isPro: userIsPro, index: 2))
 
-            VStack(alignment: .center, spacing: 8) {
+        // Floor: closet + cart basket
+        floorScene
+            .padding(.top, 14)
+            .zIndex(closetPhase != .idle ? 1 : 0)
+            .modifier(ProStaggerModifier(show: proAppeared, isPro: userIsPro, index: 3))
+    }
+
+    // MARK: - Try-On Hero Card
+
+    private var hasLooks: Bool {
+        !(container.looksViewModel?.recentLooks.isEmpty ?? true)
+    }
+
+    private func startTryOn() {
+        if RevenueCatManager.shared.isProActive || userCredits > 0 {
+            router.push(.dressUp)
+        } else {
+            showProView = true
+        }
+    }
+
+    private var heroCard: some View {
+        Button(action: startTryOn) {
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(L10n.homeDressUp)
+                        .font(.custom("InstrumentSerif-Regular", size: 34))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+
+                    Text(L10n.homeDressUpShort)
+                        .font(STFont.bodySmall)
+                        .foregroundColor(.textSecondary)
+                        .padding(.top, 6)
+
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 8) {
+                        Text(hasLooks ? L10n.homeTryNow : L10n.homeFirstTry)
+                            .font(STFont.buttonSmall)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 18)
+                    .frame(height: 44)
+                    .background(Capsule().fill(Color.accent))
+
+                    Text(L10n.homeTryCost(AppConstants.singleTryOnCost))
+                        .font(STFont.caption)
+                        .foregroundColor(.textSecondary)
+                        .padding(.top, 7)
+                }
+                .padding(.leading, 22)
+                .padding(.vertical, 20)
+
+                Spacer(minLength: 8)
+
+                // Collage art — male users get the men's outfit
+                Image(userGender == "male" ? "male-combin" : "combin")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 128)
+                    .padding(.vertical, 8)
+                    .padding(.trailing, 8)
+            }
+            .frame(height: 196)
+            .background(
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(Color(hex: "#FBF7EE"))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22)
+                    .stroke(Color(hex: "#E8DDC2"), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 22))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Tip Strip (torn paper, taped)
+
+    private var tipStrip: some View {
+        ZStack(alignment: .leading) {
+            Image("paper")
+                .resizable()
+                .frame(height: 58)
+                .padding(.horizontal, -12)
+                .rotationEffect(.degrees(-0.8))
+                .shadow(color: .black.opacity(0.12), radius: 1.5, x: 0, y: 1)
+
+            tipContent
+                .padding(.horizontal, 22)
+        }
+        .frame(height: 58)
+        .overlay(alignment: .topLeading) {
+            WashiTape(width: 56)
+                .rotationEffect(.degrees(-9))
+                .offset(x: 2, y: -7)
+                .allowsHitTesting(false)
+        }
+        .overlay(alignment: .bottomTrailing) {
+            WashiTape(width: 46)
+                .rotationEffect(.degrees(7))
+                .offset(x: -2, y: 2)
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private var tipContent: some View {
+        if weatherTipProvider.hasWeatherData, let temp = weatherTipProvider.temperature {
+            HStack(spacing: 7) {
+                Image(systemName: weatherTipProvider.iconName)
+                    .font(.system(size: 16))
+                    .foregroundColor(.proGold)
+
+                Text(temp)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(.textPrimary)
+
+                Text(weatherTipProvider.tip)
+                    .font(STFont.bodyRegular)
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Spacer(minLength: 4)
+
+                // Apple Weather attribution (required by WeatherKit)
+                if let url = weatherTipProvider.attributionLegalURL {
+                    Link(destination: url) {
+                        HStack(spacing: 2) {
+                            Image(systemName: "apple.logo")
+                                .font(.system(size: 9))
+                            Text("Weather")
+                                .font(.system(size: 9, weight: .medium))
+                        }
+                        .foregroundColor(.textSecondary.opacity(0.6))
+                    }
+                }
+            }
+        } else if weatherTipProvider.locationDenied {
+            Button {
+                showLocationAlert = true
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "location.slash")
+                        .font(.system(size: 15))
+                        .foregroundColor(.textSecondary)
+                    Text(L10n.weatherLocationDeniedHint)
+                        .font(STFont.bodyRegular)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Spacer(minLength: 0)
+                }
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 7) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 15))
+                    .foregroundColor(.proGold)
+                Text(weatherTipProvider.tip)
+                    .font(STFont.bodyRegular)
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: - Shelf Scene (recent looks + trends)
+
+    private var recentLookImages: [UIImage] {
+        guard let looksVM = container.looksViewModel else { return [] }
+        let _ = recentLooksRefresh
+        let _ = looksVM.lookImagesVersion
+        return Array(looksVM.recentLooks.prefix(3).compactMap { looksVM.lookImage(for: $0.id) })
+    }
+
+    private var shelfScene: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: 0) {
+                Spacer()
+                Button { router.push(.looks) } label: {
+                    ShelfPolaroidStack(images: recentLookImages)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.homeRecentLooks)
+                Spacer()
+                Button { router.push(.trendMagazine) } label: {
+                    TrendMagazineCard()
+                        .scaleEffect(0.72)
+                        .frame(width: 104, height: 140)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.homeTrendsShelf)
+                Spacer()
+            }
+            .frame(height: 140)
+            .padding(.horizontal, Spacing.screenHorizontal)
+
+            WoodenPlank()
+                .padding(.horizontal, Spacing.screenHorizontal)
+
+            HStack(spacing: 0) {
+                Spacer()
+                Text(L10n.homeRecentLooks).frame(width: 130)
+                Spacer()
+                Text(L10n.homeTrendsShelf).frame(width: 104)
+                Spacer()
+            }
+            .font(.custom("Bradley Hand", size: 18))
+            .foregroundColor(.textPrimary.opacity(0.8))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.top, 6)
+            .padding(.horizontal, Spacing.screenHorizontal)
+            .accessibilityHidden(true)
+        }
+    }
+
+    // MARK: - Floor Scene (closet + cart basket)
+
+    private var floorScene: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: 0) {
+                Spacer()
                 Button(action: { openWardrobe() }) {
-                    ClosetCardView(
+                    WardrobeIllustration(
                         leftDoorRotation: closetLeftDoor,
                         rightDoorRotation: closetRightDoor,
                         colorScheme: userClosetColorScheme
                     )
-                    .scaleEffect(0.90)
+                    .frame(width: 128, height: 166)
                     .overlay { closetGlowOverlay }
+                    .overlay {
+                        if !userIsPro {
+                            ProHangTag()
+                                .rotationEffect(.degrees(12))
+                                .offset(x: 16, y: 4)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(L10n.closetTitle)
+                Spacer()
+                Button { showCart = true } label: {
+                    basketView
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.cartTitle)
+                Spacer()
             }
-            .zIndex(closetPhase != .idle ? 1 : 0)
-            .frame(maxWidth: .infinity)
-        }
-        .padding(.top, -4)
-        .padding(.horizontal, Spacing.screenHorizontal)
-        .modifier(ProStaggerModifier(show: proAppeared, isPro: userIsPro, index: 2))
+            .frame(height: 168)
+            .padding(.horizontal, Spacing.screenHorizontal)
 
-        // Cart + Trend Magazine row
-        bottomCardsRow
-            .modifier(ProStaggerModifier(show: proAppeared, isPro: userIsPro, index: 4))
+            Rectangle()
+                .fill(Color.border)
+                .frame(height: 1)
+
+            HStack(spacing: 0) {
+                Spacer()
+                Text(L10n.closetTitle).frame(width: 136)
+                Spacer()
+                Text(L10n.cartTitle).frame(width: 164)
+                Spacer()
+            }
+            .font(.custom("Bradley Hand", size: 18))
+            .foregroundColor(.textPrimary.opacity(0.8))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.top, 6)
+            .padding(.horizontal, Spacing.screenHorizontal)
+            .accessibilityHidden(true)
+        }
     }
 
-    private var actionCards: some View {
-        ActionCard(
-            title: L10n.homeDressUp,
-            subtitle: L10n.homeDressUpSubtitle,
-            icon: userGender == "male" ? "camera.fill" : "square.stack.fill",
-            isGolden: userGender == "female",
-            customAsset: userGender == "male" ? "male-combin" : "combin",
-            creditCost: AppConstants.singleTryOnCost
-        ) {
-            if RevenueCatManager.shared.isProActive || userCredits > 0 {
-                router.push(.dressUp)
-            } else {
-                showProView = true
-            }
+    /// Decorative garments that always sit in the basket (the badge shows the real count).
+    private var basketItems: [BasketItem] {
+        if userGender == "male" {
+            return [
+                BasketItem(name: "showcase-bottom", size: 74, x: -40, y: -36, angle: -18),
+                BasketItem(name: "brown-jacket", size: 90, x: 8, y: -40, angle: -4)
+            ]
         }
-        .padding(.horizontal, Spacing.screenHorizontal)
+        return [
+            BasketItem(name: "bottom", size: 74, x: -41, y: -36, angle: -20),
+            BasketItem(name: "top", size: 72, x: 42, y: -38, angle: 16),
+            BasketItem(name: "jacket", size: 84, x: 0, y: -42, angle: -3)
+        ]
     }
 
-    // MARK: - Weather Card (paper strip — same as old credit strip)
-
-    private var weatherCard: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                // Paper texture background (same as credit strip)
-                Image("paper")
+    private var basketView: some View {
+        ZStack(alignment: .bottom) {
+            ForEach(basketItems) { item in
+                Image(item.name)
                     .resizable()
-                    .scaledToFill()
-                    .frame(minWidth: 0, maxWidth: .infinity)
-                    .frame(height: 120)
-                    .opacity(0.6)
-
-                if weatherTipProvider.hasWeatherData, let temp = weatherTipProvider.temperature {
-                    HStack(spacing: 6) {
-                        // Weather icon
-                        Image(systemName: weatherTipProvider.iconName)
-                            .font(.system(size: 18))
-                            .foregroundColor(userClosetColorScheme.frameMid)
-
-                        // Temperature
-                        Text(temp)
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
-                            .foregroundColor(.textPrimary)
-
-                        // Tip text
-                        Text(weatherTipProvider.tip)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(2)
-
-                        Spacer()
-
-                        // Apple Weather attribution
-                        if let url = weatherTipProvider.attributionLegalURL {
-                            Link(destination: url) {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "apple.logo")
-                                        .font(.system(size: 10))
-                                    Text("Weather")
-                                        .font(.system(size: 10, weight: .medium))
-                                }
-                                .foregroundColor(.textSecondary.opacity(0.4))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                } else if weatherTipProvider.locationDenied {
-                    Button {
-                        showLocationAlert = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "location.slash.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(.textSecondary)
-
-                            Text(L10n.weatherLocationDeniedHint)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.textSecondary)
-
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                } else {
-                    // Fallback — no weather data, show tip with title
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.homeTodaysTip)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.textPrimary)
-
-                        HStack(spacing: 6) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 18))
-                                .foregroundColor(.proGold)
-
-                            Text(weatherTipProvider.tip)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.textSecondary)
-                                .lineLimit(2)
-
-                            Spacer()
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
+                    .scaledToFit()
+                    .frame(width: item.size, height: item.size)
+                    .rotationEffect(.degrees(item.angle))
+                    .offset(x: item.x, y: item.y)
             }
-            .frame(height: 64)
-            .padding(.vertical, 6)
+
+            Image("wire-basket")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 164, height: 74)
+                .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 4)
         }
-    }
-
-    // MARK: - Bottom Cards Row (Cart + Trend Magazine)
-
-    private var bottomCardsRow: some View {
-        HStack(alignment: .top, spacing: 44) {
-            // Cart — sadece resim + başlık
-            Button(action: { showCart = true }) {
-                VStack(spacing: 10) {
-                    Image("basket")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 175, height: 175)
-
-                    Text(L10n.cartTitle)
-                        .font(STFont.labelMedium)
-                        .foregroundColor(.textPrimary)
-                }
-            }
-            .buttonStyle(.plain)
-
-            // Trend Magazine — kitap kartı + başlık
-            Button(action: { router.push(.trendMagazine) }) {
-                TrendMagazineCard()
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, Spacing.screenHorizontal)
-        .padding(.top, 8)
-    }
-
-    // MARK: - Recent Looks Column (shared)
-
-    private var recentLooksColumn: some View {
-        VStack(alignment: .center, spacing: 12) {
-            if let looksVM = container.looksViewModel {
-                let _ = recentLooksRefresh
-                let _ = looksVM.lookImagesVersion
-                let loadedImages = Array(looksVM.recentLooks.prefix(3).compactMap { looksVM.lookImage(for: $0.id) })
-
-                if !loadedImages.isEmpty {
-                    StackedLooksCards(images: loadedImages, onNavigate: {
-                        router.push(.looks)
-                    }, compact: userIsPro)
-                } else {
-                    Button(action: { router.push(.looks) }) {
-                        EmptyStackedLooksCards(compact: userIsPro)
-                    }
-                }
-            } else {
-                Button(action: { router.push(.looks) }) {
-                    EmptyStackedLooksCards(compact: userIsPro)
-                }
+        .frame(width: 164, height: 140, alignment: .bottom)
+        .overlay(alignment: .topTrailing) {
+            if cartItemCount > 0 {
+                Text("\(cartItemCount)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(minWidth: 24, minHeight: 24)
+                    .background(Circle().fill(Color.accent))
+                    .offset(x: 6, y: 44)
             }
         }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Cart Preview Card (Pro layout)
@@ -777,179 +933,188 @@ private struct ProStaggerModifier: ViewModifier {
     }
 }
 
-// MARK: - Empty Stacked Looks Cards (Placeholder)
+// MARK: - Home Scene Pieces
 
-private struct EmptyStackedLooksCards: View {
-    var compact: Bool = false
+/// A garment drawn in the cart basket (offset from the basket's bottom center).
+private struct BasketItem: Identifiable {
+    let name: String
+    let size: CGFloat
+    let x: CGFloat
+    let y: CGFloat
+    let angle: Double
+    var id: String { name }
+}
 
-    private var photoWidth: CGFloat { compact ? 130 : 145 }
-    private var photoHeight: CGFloat { compact ? 158 : 180 }
-    private var bottomHeight: CGFloat { compact ? 34 : 40 }
-    private var frameHeight: CGFloat { compact ? 220 : 250 }
+/// Three polaroids standing on the shelf: the latest looks, or blank frames for new users.
+private struct ShelfPolaroidStack: View {
+    @EnvironmentObject private var localizationManager: LocalizationManager
+    let images: [UIImage]
 
     var body: some View {
-        ZStack {
-            // Bottom card (rotated right)
-            emptyPolaroidCard()
-                .rotationEffect(.degrees(4))
-                .offset(x: 6, y: 6)
-                .zIndex(0)
-
-            // Middle card (rotated left)
-            emptyPolaroidCard()
-                .rotationEffect(.degrees(-3))
-                .offset(x: -4, y: 3)
-                .zIndex(1)
-
-            // Top card (slight right tilt)
-            emptyPolaroidCard()
-                .rotationEffect(.degrees(1.5))
-                .zIndex(2)
+        ZStack(alignment: .bottomLeading) {
+            polaroid(images.count > 2 ? images[2] : nil, showPlaceholder: false)
+                .rotationEffect(.degrees(-7))
+                .offset(x: 6, y: -2)
+            polaroid(images.count > 1 ? images[1] : nil, showPlaceholder: false)
+                .rotationEffect(.degrees(6))
+                .offset(x: 30, y: -4)
+            polaroid(images.first, showPlaceholder: images.isEmpty)
+                .rotationEffect(.degrees(-1))
+                .offset(x: 17)
         }
-        .frame(height: frameHeight)
+        .frame(width: 130, height: 136, alignment: .bottomLeading)
     }
 
-    private func emptyPolaroidCard() -> some View {
-        VStack(spacing: 0) {
-            // Empty photo area with placeholder text
-            ZStack {
+    private func polaroid(_ image: UIImage?, showPlaceholder: Bool) -> some View {
+        ZStack {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 84, height: 90)
+                    .clipped()
+            } else {
                 Rectangle()
-                    .fill(Color.bgSecondary.opacity(0.3))
-                    .frame(width: photoWidth, height: photoHeight)
-
-                Text(L10n.homeSavedImagesPlaceholder)
-                    .font(.system(size: compact ? 10 : 12, weight: .medium))
-                    .foregroundColor(.textSecondary.opacity(0.5))
-                    .multilineTextAlignment(.center)
-            }
-
-            // Polaroid bottom
-            ZStack {
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: photoWidth, height: bottomHeight)
-
-                Text(L10n.homeRecentLooks)
-                    .font(compact ? STFont.handwriting : STFont.handwriting)
-                    .foregroundColor(.textPrimary.opacity(0.7))
-                    .rotationEffect(.degrees(-2))
+                    .fill(Color(hex: "#F1EFE8"))
+                    .frame(width: 84, height: 90)
+                if showPlaceholder {
+                    Text(L10n.homeFirstLookHere)
+                        .font(.custom("Bradley Hand", size: 14))
+                        .foregroundColor(.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
             }
         }
+        .padding([.top, .horizontal], 6)
+        .padding(.bottom, 22)
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+        .shadow(color: .black.opacity(0.14), radius: 4, x: 0, y: 2)
     }
 }
 
-// MARK: - Stacked Looks Cards Component
+/// Wall shelf plank: lit top face + darker front edge.
+private struct WoodenPlank: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(Color(hex: "#E9D3B0")).frame(height: 10)
+            Rectangle().fill(Color(hex: "#C9A57A")).frame(height: 7)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 2))
+        .shadow(color: Color(hex: "#785A32").opacity(0.15), radius: 6, x: 0, y: 6)
+    }
+}
 
-private struct StackedLooksCards: View {
-    @EnvironmentObject private var localizationManager: LocalizationManager
-    let images: [UIImage]
-    let onNavigate: () -> Void
-    var compact: Bool = false
-    @State private var showBottomCard = false
-    @State private var showMiddleCard = false
-    @State private var showTopCard = false
-    @State private var fanOut = false
-
-    private var imageWidth: CGFloat { compact ? 118 : 134 }
-    private var imageHeight: CGFloat { compact ? 147 : 168 }
-    private var bottomHeight: CGFloat { compact ? 34 : 40 }
-    private var totalWidth: CGFloat { compact ? 130 : 145 }
-    private var frameHeight: CGFloat { compact ? 220 : 250 }
+/// Kraft hang tag with a string, showing the remaining tries.
+private struct CreditTag: View {
+    let text: String
 
     var body: some View {
-        ZStack {
-            // Bottom card (rotated right) - First to appear
-            if images.count > 2 {
-                polaroidCard(image: images[2])
-                    .rotationEffect(.degrees(fanOut ? 10 : 4))
-                    .offset(x: fanOut ? -30 : 6, y: fanOut ? 10 : 6)
-                    .zIndex(0)
-                    .opacity(showBottomCard ? 1 : 0)
-                    .scaleEffect(showBottomCard ? 1 : 0.8)
-                    .offset(y: showBottomCard ? 0 : 20)
+        Text(text)
+            .font(.custom("Bradley Hand", size: 18))
+            .fontWeight(.bold)
+            .foregroundColor(Color(hex: "#5C4A26"))
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.leading, 32)
+            .padding(.trailing, 12)
+            .frame(height: 42)
+            .background(
+                HangTagShape()
+                    .fill(LinearGradient(
+                        colors: [Color(hex: "#F0E4C8"), Color(hex: "#E2CFA6")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ))
+            )
+            .overlay(alignment: .leading) {
+                Circle()
+                    .fill(Color.bgPrimary)
+                    .overlay(Circle().stroke(Color(hex: "#CDB88C"), lineWidth: 2))
+                    .frame(width: 12, height: 12)
+                    .offset(x: 13)
             }
-
-            // Middle card (rotated left) - Second to appear
-            if images.count > 1 {
-                polaroidCard(image: images[1])
-                    .rotationEffect(.degrees(fanOut ? -8 : -3))
-                    .offset(x: fanOut ? 28 : -4, y: fanOut ? 8 : 3)
-                    .zIndex(1)
-                    .opacity(showMiddleCard ? 1 : 0)
-                    .scaleEffect(showMiddleCard ? 1 : 0.8)
-                    .offset(y: showMiddleCard ? 0 : 20)
+            .overlay(alignment: .topLeading) {
+                TagStringShape()
+                    .stroke(Color(hex: "#8A7A5E"), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+                    .frame(width: 34, height: 26)
+                    .offset(x: -14, y: -4)
+                    .allowsHitTesting(false)
             }
-
-            // Top card (slight right tilt) - Last to appear
-            if images.count > 0 {
-                polaroidCard(image: images[0])
-                    .rotationEffect(.degrees(fanOut ? -1 : 1.5))
-                    .offset(y: fanOut ? -12 : 0)
-                    .zIndex(2)
-                    .opacity(showTopCard ? 1 : 0)
-                    .scaleEffect(fanOut ? 1.03 : (showTopCard ? 1 : 0.8))
-                    .offset(y: showTopCard ? 0 : 20)
-            }
-        }
-        .frame(height: frameHeight)
-        .onTapGesture {
-            guard !fanOut else { return }
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
-                fanOut = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                onNavigate()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    fanOut = false
-                }
-            }
-        }
-        .onAppear {
-            // Stagger animation: bottom → middle → top
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                showBottomCard = true
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    showMiddleCard = true
-                }
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    showTopCard = true
-                }
-            }
-        }
+            .shadow(color: Color(hex: "#503C1E").opacity(0.2), radius: 2, x: 0, y: 2)
+            .rotationEffect(.degrees(6))
     }
+}
 
-    private func polaroidCard(image: UIImage) -> some View {
-        VStack(spacing: 0) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: imageWidth, height: imageHeight)
-                .clipped()
-                .padding(compact ? 4 : 6)
+/// Small "Pro" tag hung on the closet door knob for free users.
+private struct ProHangTag: View {
+    var body: some View {
+        Text("Pro")
+            .font(.custom("DMSans-SemiBold", size: 11))
+            .foregroundColor(Color(hex: "#7A6328"))
+            .padding(.leading, 10)
+            .padding(.trailing, 7)
+            .padding(.vertical, 2)
+            .background(HangTagShape(notch: 6).fill(Color(hex: "#F5EFE0")))
+            .overlay(HangTagShape(notch: 6).stroke(Color(hex: "#C9A962"), lineWidth: 1))
+    }
+}
 
-            ZStack {
-                Rectangle()
-                    .fill(Color.white)
-                    .frame(width: totalWidth, height: bottomHeight)
+/// Tag outline: rectangle with a pointed left end.
+private struct HangTagShape: Shape {
+    var notch: CGFloat = 16
 
-                Text(L10n.homeRecentLooks)
-                    .font(compact ? STFont.handwriting : STFont.handwritingMedium)
-                    .foregroundColor(.textPrimary.opacity(0.7))
-                    .rotationEffect(.degrees(-2))
-            }
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX + notch, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX - 3, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + 3), control: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - 3))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX - 3, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX + notch, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Two strands of string running from the tag's hole up and to the left.
+private struct TagStringShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let sx = rect.width / 52, sy = rect.height / 44
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * sx, y: rect.minY + y * sy) }
+        var p = Path()
+        p.move(to: pt(49, 41))
+        p.addCurve(to: pt(4, 2), control1: pt(38, 34), control2: pt(26, 16))
+        p.move(to: pt(49, 41))
+        p.addCurve(to: pt(12, -2), control1: pt(42, 28), control2: pt(30, 10))
+        return p
+    }
+}
+
+/// Translucent washi tape with torn, zigzag ends.
+private struct WashiTape: View {
+    let width: CGFloat
+
+    var body: some View {
+        TornTapeShape()
+            .fill(Color(hex: "#ECE2C6").opacity(0.8))
+            .frame(width: width, height: width > 50 ? 20 : 18)
+    }
+}
+
+private struct TornTapeShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let pts: [(CGFloat, CGFloat)] = [
+            (0.03, 0), (0.97, 0), (1, 0.15), (0.96, 0.30), (1, 0.50), (0.96, 0.70), (1, 0.85), (0.97, 1),
+            (0.03, 1), (0, 0.85), (0.04, 0.70), (0, 0.50), (0.04, 0.30), (0, 0.15)
+        ]
+        var p = Path()
+        for (i, (x, y)) in pts.enumerated() {
+            let point = CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+            if i == 0 { p.move(to: point) } else { p.addLine(to: point) }
         }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+        p.closeSubpath()
+        return p
     }
 }
 

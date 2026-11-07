@@ -56,6 +56,13 @@ enum L10n {
     static var homeTodaysTip: String { loc("home.todaysTip") }
     static var homeDressUp: String { loc("home.dressUp") }
     static var homeDressUpSubtitle: String { loc("home.dressUpSubtitle") }
+    static var homeDressUpShort: String { loc("home.dressUpShort") }
+    static var homeTryNow: String { loc("home.tryNow") }
+    static var homeFirstTry: String { loc("home.firstTry") }
+    static func homeTryCost(_ count: Int) -> String { loc("home.tryCost", count) }
+    static func homeCreditTag(_ count: Int) -> String { count == 1 ? loc("home.creditTagOne") : loc("home.creditTag", count) }
+    static var homeFirstLookHere: String { loc("home.firstLookHere") }
+    static var homeTrendsShelf: String { loc("home.trendsShelf") }
     static var homeStyleTip: String { loc("home.styleTip") }
     static var homeRecentLooks: String { loc("home.recentLooks") }
     static var homeSavedImagesPlaceholder: String { loc("home.savedImagesPlaceholder") }
