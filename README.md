@@ -2,7 +2,7 @@
 
 **Try clothes on before you buy them.** StilYa is a SwiftUI app for virtual try-on. You set up a reference photo of yourself once, then add any garment (a screenshot from a store, a photo of something in your closet) and StilYa shows you wearing it.
 
-StilYa shipped on the App Store. This repository is the full app, open-sourced and rebuilt so that every generated image comes from [fal](https://fal.ai) Model APIs.
+StilYa is open source. Every image it generates comes from [fal](https://fal.ai) Model APIs.
 
 <p align="center">
   <img src="docs/screenshots/home.png" width="200" alt="Home screen">
@@ -58,6 +58,13 @@ sequenceDiagram
 - **Failures are cheap.** 429 and 5xx responses are retried with backoff, an empty result gets one more try, and the user's credit is refunded on any failure.
 
 The fal client is about 100 lines: see `callFalImageEdit` in [`cloudflare-worker/worker.js`](cloudflare-worker/worker.js). The try-on prompts sit next to it in `buildNanoBananaPrompt` and `buildOutfitReplicationPrompt`.
+
+### Why these models
+
+- **`nano-banana-2/edit` for try-on and combos.** It takes the person and every garment as `image_urls` in one call, so a three-piece outfit is a single generation, and it keeps the face, body and pose. In an in-app A/B test on the same inputs it ran at about a third of Nano Banana Pro's cost.
+- **`nano-banana-pro/edit` for the harder jobs:** picking each item out of a flat-lay and dressing the person in all of them, and turning selfies into a full-body photo, which Nano Banana 2 refused to generate.
+
+Because each job reads its model from a Worker var, moving to a newer fal model is a config change and an A/B run, not an app release.
 
 ## Architecture
 
